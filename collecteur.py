@@ -1,10 +1,11 @@
 """Collecte les avis d'appels d'offres des régions dans le Quotidien des marchés publics (DGCMEF)."""
 import io, json, re, sys, datetime, requests, pdfplumber
 
-MODELES = [  # adresses possibles d'un numéro du Quotidien
-    "https://www.finances.gov.bf/fileadmin/user_upload/storage/fichiers/Quotidien_N__{n}.pdf",
-    "https://finances.gov.bf/fileadmin/user_upload/storage/fichiers/Quotidien_N__{n}.pdf",
-]
+BASES = ["https://www.finances.gov.bf/fileadmin/user_upload/storage/fichiers/",
+         "https://finances.gov.bf/fileadmin/user_upload/storage/fichiers/"]
+NOMS = ["Quotidien_N__{n}.pdf", "Quotidien_N__{n}_.pdf", "Quotidien_N__{n}-pdf.pdf", "Quotidien_n__{n}.pdf"]
+MODELES = [b + nom for nom in NOMS for b in BASES]  # adresses possibles d'un numéro du Quotidien
+ENTETES = {"User-Agent": "Mozilla/5.0 (compatible; collecteur-appels-offres)"}
 MAX_PAR_PASSAGE = 40   # nombre maximum de numéros traités à chaque passage
 MAX_TROUS = 4          # on s'arrête après 4 numéros introuvables d'affilée
 ETAT, SORTIE = "data/etat.json", "data/appels.json"
@@ -76,7 +77,7 @@ def main():
         for modele in MODELES:
             url = modele.format(n=n)
             try:
-                r = requests.get(url, timeout=60)
+                r = requests.get(url, headers=ENTETES, timeout=60)
                 if r.status_code == 200 and r.content[:4] == b"%PDF": contenu, url_ok = r.content, url; break
             except requests.RequestException as e: print("Erreur réseau", n, e)
         if contenu is None: trous += 1; print("Introuvable :", n); n += 1; continue
